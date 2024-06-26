@@ -4,5 +4,5 @@
     "config:base"
   ],
   "labels": ["Dependencies"],
-  "includePaths": [".github/workflows/", "gradle/sy.versions.toml"],
+  "includePaths": [".github/workflows/*", "gradle/sy.versions.toml"],
 }
