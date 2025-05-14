@@ -130,6 +130,7 @@ class ReaderViewModel @JvmOverloads constructor(
     private val setMangaViewerFlags: SetMangaViewerFlags = Injekt.get(),
     private val getIncognitoState: GetIncognitoState = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val mangaRepository: MangaRepository = Injekt.get(),
     // SY -->
     private val syncPreferences: SyncPreferences = Injekt.get(),
     private val uiPreferences: UiPreferences = Injekt.get(),
@@ -140,6 +141,21 @@ class ReaderViewModel @JvmOverloads constructor(
     private val setReadStatus: SetReadStatus = Injekt.get(),
     // SY <--
 ) : ViewModel() {
+        
+    // Fungsi untuk menyimpan posisi halaman terakhir yang dibaca
+    fun saveLastReadPage(pageIndex: Int) {
+        val chapter = state.value?.currentChapter?.chapter
+        if (chapter != null) {
+            val updatedChapter = chapter.copy(last_page_read = pageIndex)
+            // Pastikan mangaRepository.updateChapter bekerja sesuai dengan DAO
+            mangaRepository.updateChapter(updatedChapter)
+        }
+    }
+
+    // Fungsi untuk mengambil posisi halaman terakhir yang dibaca
+    fun getLastReadPage(): Int? {
+        return state.value?.currentChapter?.chapter?.last_page_read
+    }
 
     private val mutableState = MutableStateFlow(State())
     val state = mutableState.asStateFlow()
@@ -1412,3 +1428,16 @@ class ReaderViewModel @JvmOverloads constructor(
         data class CopyImage(val uri: Uri) : Event
     }
 }
+
+
+    fun saveLastReadPage(pageIndex: Int) {
+        val chapter = state.value?.currentChapter?.chapter ?: return
+        val updatedChapter = chapter.copy(last_page_read = pageIndex)
+        viewModelScope.launch {
+            chapterSaver.updateChapter(updatedChapter)
+        }
+    }
+
+    fun getLastReadPage(): Int? {
+        return state.value?.currentChapter?.chapter?.last_page_read
+    }

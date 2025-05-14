@@ -295,8 +295,13 @@ class ReaderActivity : BaseActivity() {
     }
 
     override fun onPause() {
-        viewModel.flushReadTimer()
-        super.onPause()
+      super.onPause()
+
+      val index = viewer?.currentPage?.index ?: return
+      val chapter = viewModel.chapter?.chapter ?: return
+
+    // Simpan ke DB via presenter / viewmodel
+      viewModel.updateChapterProgress(chapter, index)
     }
 
     /**
@@ -304,9 +309,21 @@ class ReaderActivity : BaseActivity() {
      * Helps with rotations.
      */
     override fun onResume() {
-        super.onResume()
-        viewModel.restartReadTimer()
-        setMenuVisibility(viewModel.state.value.menuVisible)
+       super.onResume()
+
+       val chapter = viewModel.chapter?.chapter ?: return
+       val index = chapter.last_page_read
+
+      // Cek kalau page list sudah siap
+       if (viewer?.pages != null && index < viewer!!.pages!!.size) {
+          viewer?.setPage(index)
+       } else {
+          Handler(Looper.getMainLooper()).postDelayed({
+             if (viewer?.pages != null && index < viewer!!.pages!!.size) {
+                viewer?.setPage(index)
+             }
+          }, 300)
+       }
     }
 
     /**
@@ -1393,3 +1410,17 @@ class ReaderActivity : BaseActivity() {
         }
     }
 }
+
+    override fun onPause() {
+        super.onPause()
+        val index = viewer?.currentPage?.index ?: return
+        viewModel.saveLastReadPage(index)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val index = viewModel.getLastReadPage()
+        if (index != null) {
+            viewer?.setPage(index, false)
+        }
+    }
