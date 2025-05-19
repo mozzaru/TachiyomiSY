@@ -31,25 +31,26 @@ abstract class WebViewClientCompat : WebViewClient() {
 
     @TargetApi(Build.VERSION_CODES.N)
     final override fun shouldOverrideUrlLoading(
-        view: WebView,
-        request: WebResourceRequest,
-    ): Boolean = shouldOverrideUrlCompat(view, request.url.toString())
+      view: WebView,
+      request: WebResourceRequest,
+    ): Boolean = false
 
+    // WebViewClient*.* (nama file kamu temukan)
     final override fun shouldOverrideUrlLoading(
         view: WebView,
         url: String,
-    ): Boolean = shouldOverrideUrlCompat(view, url)
-
+    ): Boolean = false          // ← biarkan WebView memuat sendiri
+    
     final override fun shouldInterceptRequest(
         view: WebView,
         request: WebResourceRequest,
-    ): WebResourceResponse? = shouldInterceptRequestCompat(view, request.url.toString())
-
+    ): WebResourceResponse? = null   // ← jangan intercept
+    
     final override fun shouldInterceptRequest(
         view: WebView,
         url: String,
-    ): WebResourceResponse? = shouldInterceptRequestCompat(view, url)
-
+    ): WebResourceResponse? = null   // ← jangan intercept
+    
     final override fun onReceivedError(
         view: WebView,
         request: WebResourceRequest,
