@@ -51,11 +51,18 @@ jobs:
           arguments: assembleStandardRelease
 
       # Sign APK and create release for tags
-      - name: Get tag name
-        if: github.event.inputs.version != ''
+      - name: Set VERSION_TAG
         run: |
-          set -x
-          echo "VERSION_TAG=${{github.event.inputs.version}}" >> $GITHUB_ENV
+          set -e
+          # kalau dipicu manual dan version diisi ➜ pakai itu
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            echo "VERSION_TAG=${{ github.event.inputs.version }}" >> "$GITHUB_ENV"
+          else
+            # otomatis ambil nama tag git (event push tag) atau short-sha
+            tag="${GITHUB_REF_NAME#refs/tags/}"
+            [[ -z "$tag" ]] && tag="${GITHUB_SHA::7}"
+            echo "VERSION_TAG=$tag" >> "$GITHUB_ENV"
+          fi
 
       - name: Sign APK
         if: env.VERSION_TAG != ''
