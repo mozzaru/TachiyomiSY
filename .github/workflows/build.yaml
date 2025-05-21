@@ -1,0 +1,84 @@
+name: Java CI
+
+on:
+  push:
+    branches:
+      - '**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Configure Git with token
+      env:
+        GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+      run: |
+        git config --global url."https://${GIT_TOKEN}@github.com/".insteadOf "https://github.com/"
+
+    - uses: actions/checkout@main
+      with:
+        submodules: true
+
+    - name: Set up JDK 22
+      uses: actions/setup-java@main
+      with:
+        java-version: 22
+        distribution: temurin
+
+    # SY -->
+    - name: Write google-services.json
+      uses: DamianReeves/write-file-action@v1.3
+      with:
+        path: app/google-services.json
+        contents: ${{ secrets.GOOGLE_SERVICES_TEXT }}
+        write-mode: overwrite
+
+    - name: Write client_secrets.json
+      uses: DamianReeves/write-file-action@v1.3
+      with:
+        path: app/src/main/assets/client_secrets.json
+        contents: ${{ secrets.CLIENT_SECRETS_TEXT }}
+        write-mode: overwrite
+    # SY <--
+
+    - name: Assemble APK
+      run: ./gradlew --no-daemon assembleRelease
+
+    - name: Set TACHIYOMISY_VERSION
+      run: echo "TACHIYOMISY_VERSION=v$(grep --only-matching --perl-regexp 'versionName\\s=\\s\\"\\K([0-9\\.]+)' './app/build.gradle.kts')+$(git rev-parse --short 'HEAD')" >> "${GITHUB_ENV}"
+
+    - name: Sign APK
+      env:
+        KEYSTORE_BASE64: ${{ secrets.SIGNING_KEY }}
+        KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: |
+        echo "$KEYSTORE_BASE64" | base64 -d > keystore.jks
+        jarsigner -verbose \
+          -keystore keystore.jks \
+          -storepass "$KEYSTORE_PASSWORD" \
+          -keypass "$KEY_PASSWORD" \
+          -signedjar ./app/build/outputs/apk/release/app-release-signed.apk \
+          ./app/build/outputs/apk/release/app-release-unsigned.apk \
+          "$KEY_ALIAS"
+        rm keystore.jks
+
+    - name: Upload APK
+      uses: actions/upload-artifact@main
+      with:
+        name: "tachiyomisy_${{ env.TACHIYOMISY_VERSION }}-github-release"
+        path: ./app/build/outputs/apk/release/app-release-signed.apk
+      
+      # Clean build only if build is successful
+    - name: Clean Gradle Build Directory (on success)
+      if: success()
+      run: |
+        ./gradlew clean
+        rm -f keystore.jks
+        rm -f app/google-services.json
+        rm -f app/src/main/assets/client_secrets.json
