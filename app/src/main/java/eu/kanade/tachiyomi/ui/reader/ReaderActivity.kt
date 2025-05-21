@@ -307,6 +307,8 @@ class ReaderActivity : BaseActivity() {
         super.onResume()
         viewModel.restartReadTimer()
         setMenuVisibility(viewModel.state.value.menuVisible)
+    
+        viewModel.reloadCurrentChapterIfEmpty()
     }
 
     /**

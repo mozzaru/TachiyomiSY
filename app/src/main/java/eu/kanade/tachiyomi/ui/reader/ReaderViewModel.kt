@@ -443,25 +443,31 @@ class ReaderViewModel @JvmOverloads constructor(
     private suspend fun loadChapter(
         loader: ChapterLoader,
         chapter: ReaderChapter,
-        // SY -->
         page: Int? = null,
-        // SY <--
+        force: Boolean = false, // Tambahan
     ): ViewerChapters {
-        loader.loadChapter(chapter /* SY --> */, page/* SY <-- */)
-
+        // Cegah load ulang jika tidak force dan chapter sudah punya pages
+        if (!force && chapter.pages != null && chapter.pages!!.isNotEmpty()) {
+            return ViewerChapters(
+                chapter,
+                chapterList.getOrNull(chapterList.indexOf(chapter) - 1),
+                chapterList.getOrNull(chapterList.indexOf(chapter) + 1),
+            )
+        }
+    
+        loader.loadChapter(chapter, page)
         val chapterPos = chapterList.indexOf(chapter)
         val newChapters = ViewerChapters(
             chapter,
             chapterList.getOrNull(chapterPos - 1),
             chapterList.getOrNull(chapterPos + 1),
         )
-
+    
         withUIContext {
             mutableState.update {
-                // Add new references first to avoid unnecessary recycling
                 newChapters.ref()
                 it.viewerChapters?.unref()
-
+    
                 chapterToDownload = cancelQueuedDownloads(newChapters.currChapter)
                 it.copy(
                     viewerChapters = newChapters,
@@ -470,6 +476,23 @@ class ReaderViewModel @JvmOverloads constructor(
             }
         }
         return newChapters
+    }
+    
+    fun reloadCurrentChapterIfEmpty() {
+        val viewerChapters = state.value.viewerChapters ?: return
+        val currentChapter = viewerChapters.currChapter
+        val loader = loader ?: return
+    
+        if (currentChapter.pages.isNullOrEmpty()) {
+            viewModelScope.launchIO {
+                logcat { "Reloading current chapter: ${currentChapter.chapter.url}" }
+                try {
+                    loadChapter(loader, currentChapter, force = true)
+                } catch (e: Throwable) {
+                    logcat(LogPriority.ERROR, e)
+                }
+            }
+        }
     }
 
     /**
